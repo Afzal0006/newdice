@@ -24,6 +24,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Only owner can start the game!")
         return
 
+    if game_active:  # Check if a game is already running
+        await update.message.reply_text("❌ A game is already active! Wait for it to finish.")
+        return
+
     game_active = True
     players_collection.delete_many({})
     await update.message.reply_text(
@@ -33,6 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== Dice Pick (Users) =====
 async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global game_active
     if not game_active:
         await update.message.reply_text("No active game! Wait for the owner to start.")
         return
@@ -67,6 +72,8 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===== Owner DM Command to Set Result =====
 async def set_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global fixed_dice_roll
+    if update.message.chat.type != "private":  # Only DM
+        return
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only owner can use this command!")
         return
@@ -88,6 +95,8 @@ async def set_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global game_active, fixed_dice_roll
 
+    if update.message.chat.type == "private":  # Ignore DM
+        return
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only owner can announce the result!")
         return
@@ -100,10 +109,9 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No dice result set yet in DM!")
         return
 
-    # Send animated dice 🎲
-    dice_msg = await context.bot.send_dice(update.effective_chat.id, emoji="🎲")
+    # 🎲 Send animated dice
+    await context.bot.send_dice(update.effective_chat.id, emoji="🎲")
 
-    # Use the fixed dice result (ignore random from animation)
     dice_roll = fixed_dice_roll
 
     # Fetch players
@@ -131,8 +139,8 @@ app = ApplicationBuilder().token(BOT_TOKEN).build()
 # Handlers
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("dice", dice))
-app.add_handler(CommandHandler("result", set_result, filters=None))   # DM command with number
-app.add_handler(CommandHandler("result", show_result))  # Group result (no args)
+app.add_handler(CommandHandler("result", set_result))   # DM command
+app.add_handler(CommandHandler("result", show_result))  # Group command
 
 print("Bot is running...")
 app.run_polling()
