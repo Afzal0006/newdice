@@ -1,3 +1,4 @@
+import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, filters
 from pymongo import MongoClient
@@ -5,7 +6,7 @@ from pymongo import MongoClient
 # ===== Config =====
 BOT_TOKEN = "8357734886:AAHQi1zmj9q8B__7J-2dyYUWVTQrMRr65Dc"
 MONGO_URI = "mongodb+srv://afzal99550:afzal99550@cluster0.aqmbh9q.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-OWNER_ID = 7363327309  # Your Telegram ID
+OWNER_ID = 7363327309
 
 # ===== MongoDB setup =====
 client = MongoClient(MONGO_URI)
@@ -17,7 +18,7 @@ game_active = False
 fixed_dice_roll = None
 
 
-# ===== Start Command (Owner only) =====
+# ===== Start Command =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global game_active
     if update.message.from_user.id != OWNER_ID:
@@ -107,15 +108,23 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No dice result set yet in DM!")
         return
 
-    # 🎲 Animated dice
-    await context.bot.send_dice(update.effective_chat.id, emoji="🎲")
+    # 🎲 Send dice animation (Telegram random)
+    dice_message = await context.bot.send_dice(update.effective_chat.id, emoji="🎲")
 
+    # 2 seconds wait
+    await asyncio.sleep(2)
+
+    # Delete dice animation
+    await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=dice_message.message_id)
+
+    # Fixed result from DM
     dice_roll = fixed_dice_roll
     players = list(players_collection.find({}))
 
     winners = [p["username"] for p in players if p["chosen_number"] == dice_roll]
     losers = [p["username"] for p in players if p["chosen_number"] != dice_roll]
 
+    # Send final result
     result_msg = f"🎲 Dice rolled: {dice_roll}\n\n"
     result_msg += "🏆 Winners:\n" + ("\n".join(winners) if winners else "None") + "\n\n"
     result_msg += "❌ Losers:\n" + ("\n".join(losers) if losers else "None")
@@ -131,12 +140,12 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===== Main =====
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-# Handlers
 # DM handler
 app.add_handler(CommandHandler("result", set_result, filters=(filters.ChatType.PRIVATE & filters.User(user_id=OWNER_ID))))
 # Group handler
 app.add_handler(CommandHandler("result", show_result, filters=(filters.ChatType.GROUPS & filters.User(user_id=OWNER_ID))))
 
+# Other handlers
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("dice", dice))
 
