@@ -17,6 +17,16 @@ players_collection = db["players"]
 game_active = False
 fixed_dice_roll = None
 
+# ===== Dice images URLs =====
+dice_images = {
+    1: "https://i.ibb.co/xqVxWWZt/x.jpg",
+    2: "https://i.ibb.co/9mGJYWp9/x.jpg",
+    3: "https://i.ibb.co/Pz6h5Wq7/x.jpg",
+    4: "https://i.ibb.co/sfmzKYq/x.jpg",
+    5: "https://i.ibb.co/XZ5XYx4r/x.jpg",
+    6: "https://i.ibb.co/FbVHf8JG/x.jpg",
+}
+
 # ===== Start Command =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global game_active
@@ -86,7 +96,7 @@ async def set_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fixed_dice_roll = number
     await update.message.reply_text(f"✅ Dice result set to {fixed_dice_roll} for current game")
 
-# ===== Group Result Command (PNG dice) =====
+# ===== Group Result Command (Dice image + winners/losers) =====
 async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global game_active, fixed_dice_roll
 
@@ -104,21 +114,19 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No dice result set yet in DM!")
         return
 
-    # ✅ Send fixed dice PNG
-    dice_file = f"dice{fixed_dice_roll}.png"  # Ensure these images are in bot folder
-    await context.bot.send_photo(update.effective_chat.id, photo=open(dice_file, "rb"))
+    # ✅ Send fixed dice image from URL
+    image_url = dice_images.get(fixed_dice_roll)
+    if image_url:
+        await context.bot.send_photo(update.effective_chat.id, photo=image_url)
 
-    # Wait 2 sec (optional visual effect)
-    await asyncio.sleep(2)
+    await asyncio.sleep(2)  # Optional wait for visual effect
 
     # Winners / Losers
-    dice_roll = fixed_dice_roll
     players = list(players_collection.find({}))
+    winners = [p["username"] for p in players if p["chosen_number"] == fixed_dice_roll]
+    losers = [p["username"] for p in players if p["chosen_number"] != fixed_dice_roll]
 
-    winners = [p["username"] for p in players if p["chosen_number"] == dice_roll]
-    losers = [p["username"] for p in players if p["chosen_number"] != dice_roll]
-
-    result_msg = f"🎲 Dice rolled: {dice_roll}\n\n"
+    result_msg = f"🎲 Dice rolled: {fixed_dice_roll}\n\n"
     result_msg += "🏆 Winners:\n" + ("\n".join(winners) if winners else "None") + "\n\n"
     result_msg += "❌ Losers:\n" + ("\n".join(losers) if losers else "None")
 
@@ -135,7 +143,7 @@ app = ApplicationBuilder().token(BOT_TOKEN).build()
 # DM handler
 app.add_handler(CommandHandler("result", set_result, filters=(filters.ChatType.PRIVATE & filters.User(user_id=OWNER_ID))))
 # Group handler
-app.add_handler(CommandHandler("result", show_result, filters=(filters.ChatType.GROUPS & filters.User(user_id=OWNER_ID))))
+app.add_handler(CommandHandler("result", show_result, filters=(filters.ChatType.GROUP & filters.User(user_id=OWNER_ID))))
 
 # Other handlers
 app.add_handler(CommandHandler("start", start))
