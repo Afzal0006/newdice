@@ -1,5 +1,5 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, filters
 from pymongo import MongoClient
 
 # ===== Config =====
@@ -24,7 +24,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Only owner can start the game!")
         return
 
-    if game_active:  # Check if a game is already running
+    if game_active:
         await update.message.reply_text("❌ A game is already active! Wait for it to finish.")
         return
 
@@ -54,12 +54,10 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     username = update.message.from_user.first_name
 
-    # Check if user already picked
     if players_collection.find_one({"user_id": user_id}):
         await update.message.reply_text("❌ You already picked a number for this game!")
         return
 
-    # Save user pick
     players_collection.insert_one({
         "user_id": user_id,
         "username": username,
@@ -72,7 +70,7 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===== Owner DM Command to Set Result =====
 async def set_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global fixed_dice_roll
-    if update.message.chat.type != "private":  # Only DM
+    if update.message.chat.type != "private":
         return
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only owner can use this command!")
@@ -95,7 +93,7 @@ async def set_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global game_active, fixed_dice_roll
 
-    if update.message.chat.type == "private":  # Ignore DM
+    if update.message.chat.type == "private":
         return
     if update.message.from_user.id != OWNER_ID:
         await update.message.reply_text("❌ Only owner can announce the result!")
@@ -109,18 +107,15 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No dice result set yet in DM!")
         return
 
-    # 🎲 Send animated dice
+    # 🎲 Animated dice
     await context.bot.send_dice(update.effective_chat.id, emoji="🎲")
 
     dice_roll = fixed_dice_roll
-
-    # Fetch players
     players = list(players_collection.find({}))
 
     winners = [p["username"] for p in players if p["chosen_number"] == dice_roll]
     losers = [p["username"] for p in players if p["chosen_number"] != dice_roll]
 
-    # Show result
     result_msg = f"🎲 Dice rolled: {dice_roll}\n\n"
     result_msg += "🏆 Winners:\n" + ("\n".join(winners) if winners else "None") + "\n\n"
     result_msg += "❌ Losers:\n" + ("\n".join(losers) if losers else "None")
@@ -137,10 +132,13 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
 # Handlers
+# DM handler
+app.add_handler(CommandHandler("result", set_result, filters=(filters.ChatType.PRIVATE & filters.User(user_id=OWNER_ID))))
+# Group handler
+app.add_handler(CommandHandler("result", show_result, filters=(filters.ChatType.GROUPS & filters.User(user_id=OWNER_ID))))
+
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("dice", dice))
-app.add_handler(CommandHandler("result", set_result))   # DM command
-app.add_handler(CommandHandler("result", show_result))  # Group command
 
 print("Bot is running...")
 app.run_polling()
