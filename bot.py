@@ -141,9 +141,17 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
 # DM handler
-app.add_handler(CommandHandler("result", set_result, filters=(filters.ChatType.PRIVATE & filters.User(user_id=OWNER_ID))))
+app.add_handler(CommandHandler(
+    "result",
+    set_result,
+    filters=(filters.ChatType.PRIVATE & filters.User(user_id=OWNER_ID))
+))
 # Group handler
-app.add_handler(CommandHandler("result", show_result, filters=(filters.ChatType.GROUP & filters.User(user_id=OWNER_ID))))
+app.add_handler(CommandHandler(
+    "result",
+    show_result,
+    filters=(filters.ChatType.GROUP & filters.User(user_id=OWNER_ID))
+))
 
 # Other handlers
 app.add_handler(CommandHandler("start", start))
