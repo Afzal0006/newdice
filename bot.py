@@ -17,7 +17,6 @@ players_collection = db["players"]
 game_active = False
 fixed_dice_roll = None
 
-
 # ===== Start Command =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global game_active
@@ -34,7 +33,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🎲 Dice game started!\nUsers, pick your number (1-6) using /dice <number>"
     )
-
 
 # ===== Dice Pick (Users) =====
 async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -67,7 +65,6 @@ async def dice(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"{username} picked {number}")
 
-
 # ===== Owner DM Command to Set Result =====
 async def set_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global fixed_dice_roll
@@ -89,8 +86,7 @@ async def set_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fixed_dice_roll = number
     await update.message.reply_text(f"✅ Dice result set to {fixed_dice_roll} for current game")
 
-
-# ===== Group Result Command =====
+# ===== Group Result Command (PNG dice) =====
 async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global game_active, fixed_dice_roll
 
@@ -108,19 +104,20 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No dice result set yet in DM!")
         return
 
-    # 🎲 Send dice animation (random) for 2 sec
-    dice_message = await context.bot.send_dice(update.effective_chat.id, emoji="🎲")
-    await asyncio.sleep(2)
-    await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=dice_message.message_id)
+    # ✅ Send fixed dice PNG
+    dice_file = f"dice{fixed_dice_roll}.png"  # Ensure these images are in bot folder
+    await context.bot.send_photo(update.effective_chat.id, photo=open(dice_file, "rb"))
 
-    # Fixed result from DM
+    # Wait 2 sec (optional visual effect)
+    await asyncio.sleep(2)
+
+    # Winners / Losers
     dice_roll = fixed_dice_roll
     players = list(players_collection.find({}))
 
     winners = [p["username"] for p in players if p["chosen_number"] == dice_roll]
     losers = [p["username"] for p in players if p["chosen_number"] != dice_roll]
 
-    # Final clean result message
     result_msg = f"🎲 Dice rolled: {dice_roll}\n\n"
     result_msg += "🏆 Winners:\n" + ("\n".join(winners) if winners else "None") + "\n\n"
     result_msg += "❌ Losers:\n" + ("\n".join(losers) if losers else "None")
@@ -131,7 +128,6 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     game_active = False
     players_collection.delete_many({})
     fixed_dice_roll = None
-
 
 # ===== Main =====
 app = ApplicationBuilder().token(BOT_TOKEN).build()
