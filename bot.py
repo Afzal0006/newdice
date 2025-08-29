@@ -108,13 +108,9 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ No dice result set yet in DM!")
         return
 
-    # 🎲 Send dice animation (Telegram random)
+    # 🎲 Send dice animation (random) for 2 sec
     dice_message = await context.bot.send_dice(update.effective_chat.id, emoji="🎲")
-
-    # 2 seconds wait
     await asyncio.sleep(2)
-
-    # Delete dice animation
     await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=dice_message.message_id)
 
     # Fixed result from DM
@@ -124,7 +120,7 @@ async def show_result(update: Update, context: ContextTypes.DEFAULT_TYPE):
     winners = [p["username"] for p in players if p["chosen_number"] == dice_roll]
     losers = [p["username"] for p in players if p["chosen_number"] != dice_roll]
 
-    # Send final result
+    # Final clean result message
     result_msg = f"🎲 Dice rolled: {dice_roll}\n\n"
     result_msg += "🏆 Winners:\n" + ("\n".join(winners) if winners else "None") + "\n\n"
     result_msg += "❌ Losers:\n" + ("\n".join(losers) if losers else "None")
